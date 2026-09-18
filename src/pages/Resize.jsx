@@ -2,10 +2,8 @@ import { useState } from "react"
 import FileUpload from "../components/FileUpload"
 import {
   fileToDataURL,
+  dataURLToBlob,
   resizeImage
-} from "../utils/scanProcessing"
-import {
-  dataURLToBlob
 } from "../utils/scanProcessing"
 import {
   downloadBlob
@@ -23,10 +21,18 @@ export default function Resize() {
 
   const [height, setHeight] =
     useState(1600)
-  const [originalWidth, setOriginalWidth] = useState(0)
-  const [originalHeight, setOriginalHeight] = useState(0)
+
+  const [originalWidth, setOriginalWidth] =
+    useState(0)
+
+  const [originalHeight, setOriginalHeight] =
+    useState(0)
+
   const [percentage, setPercentage] =
     useState(100)
+
+  const [keepRatio, setKeepRatio] =
+    useState(true)
 
   const [mode, setMode] =
     useState("dimensions")
@@ -45,6 +51,45 @@ export default function Resize() {
       await fileToDataURL(selected)
 
     setPreview(src)
+
+    const img = new Image()
+    await new Promise((resolve) => {
+      img.onload = resolve
+      img.src = src
+    })
+
+    setOriginalWidth(img.naturalWidth)
+    setOriginalHeight(img.naturalHeight)
+    setWidth(img.naturalWidth)
+    setHeight(img.naturalHeight)
+  }
+
+  function handleWidthChange(value) {
+    const newWidth = Number(value)
+    setWidth(newWidth)
+
+    if (keepRatio && originalWidth > 0) {
+      setHeight(
+        Math.round(
+          (originalHeight / originalWidth) *
+          newWidth
+        )
+      )
+    }
+  }
+
+  function handleHeightChange(value) {
+    const newHeight = Number(value)
+    setHeight(newHeight)
+
+    if (keepRatio && originalHeight > 0) {
+      setWidth(
+        Math.round(
+          (originalWidth / originalHeight) *
+          newHeight
+        )
+      )
+    }
   }
 
   async function resize() {
@@ -80,6 +125,8 @@ export default function Resize() {
         )
     }
 
+    if (newWidth <= 0 || newHeight <= 0) return
+
     const mime =
       format === "png"
         ? "image/png"
@@ -107,15 +154,17 @@ export default function Resize() {
   }
 
   return (
-    <main className="mx-auto max-w-[1100px] px-5 py-10">
+    <main className="mx-auto max-w-[1280px] px-5 py-8 lg:px-10">
 
-      <h1 className="text-4xl font-bold text-[#31473a]">
-        Resize
-      </h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-primary-heading">
+          Resize
+        </h1>
 
-      <p className="mt-2 text-[#424844]">
-        Resize images by dimensions or percentage.
-      </p>
+        <p className="mt-2 text-on-surface-variant">
+          Resize images by dimensions or percentage.
+        </p>
+      </div>
 
       {!file && (
         <div className="mt-8">
@@ -123,23 +172,38 @@ export default function Resize() {
             accept="image/*"
             onFiles={selectFile}
             title="Select image"
+            description="Click or drag an image here"
           />
         </div>
       )}
 
       {file && (
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
 
-          <div className="rounded-xl border bg-[#edf4f2] p-6">
+          <section className="rounded-xl border border-outline-variant bg-surface p-6">
+            <h2 className="font-bold text-primary-heading mb-4">
+              Preview
+            </h2>
+
             {preview && (
               <img
                 src={preview}
-                className="max-h-[550px] w-full object-contain"
+                className="max-h-[550px] w-full object-contain rounded-lg"
               />
             )}
-          </div>
 
-          <div className="rounded-xl border bg-[#edf4f2] p-6">
+            {originalWidth > 0 && (
+              <p className="mt-3 text-sm text-on-surface-variant">
+                Original: {originalWidth} × {originalHeight} px
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-outline-variant bg-surface p-6">
+
+            <h2 className="font-bold text-primary-heading mb-4">
+              Resize Settings
+            </h2>
 
             <div className="grid grid-cols-2 gap-2">
 
@@ -147,11 +211,11 @@ export default function Resize() {
                 onClick={() =>
                   setMode("dimensions")
                 }
-                className={
+                className={`rounded-lg p-3 font-bold ${
                   mode === "dimensions"
-                    ? "rounded-lg bg-[#1b3125] p-3 font-bold text-white"
-                    : "rounded-lg border p-3 font-bold"
-                }
+                    ? "bg-primary text-white"
+                    : "border border-outline text-on-surface-variant"
+                }`}
               >
                 Dimensions
               </button>
@@ -160,11 +224,11 @@ export default function Resize() {
                 onClick={() =>
                   setMode("percentage")
                 }
-                className={
+                className={`rounded-lg p-3 font-bold ${
                   mode === "percentage"
-                    ? "rounded-lg bg-[#1b3125] p-3 font-bold text-white"
-                    : "rounded-lg border p-3 font-bold"
-                }
+                    ? "bg-primary text-white"
+                    : "border border-outline text-on-surface-variant"
+                }`}
               >
                 Percentage
               </button>
@@ -174,32 +238,50 @@ export default function Resize() {
             {mode === "dimensions" && (
               <div className="mt-5 grid gap-4">
 
-                <label>
-                  Width
+                <label className="block">
+                  <span className="text-sm font-bold text-primary-heading">
+                    Width
+                  </span>
                   <input
                     type="number"
                     value={width}
-                    onChange={event =>
-                      setWidth(
+                    onChange={(event) =>
+                      handleWidthChange(
                         event.target.value
                       )
                     }
-                    className="mt-2 w-full rounded-lg border p-3"
+                    className="mt-2 w-full rounded-lg border border-outline bg-background px-3 py-3"
                   />
                 </label>
 
-                <label>
-                  Height
+                <label className="block">
+                  <span className="text-sm font-bold text-primary-heading">
+                    Height
+                  </span>
                   <input
                     type="number"
                     value={height}
-                    onChange={event =>
-                      setHeight(
+                    onChange={(event) =>
+                      handleHeightChange(
                         event.target.value
                       )
                     }
-                    className="mt-2 w-full rounded-lg border p-3"
+                    className="mt-2 w-full rounded-lg border border-outline bg-background px-3 py-3"
                   />
+                </label>
+
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={keepRatio}
+                    onChange={(e) =>
+                      setKeepRatio(e.target.checked)
+                    }
+                    className="h-5 w-5"
+                  />
+                  <span className="font-semibold text-sm text-primary-heading">
+                    Maintain aspect ratio
+                  </span>
                 </label>
 
               </div>
@@ -207,40 +289,42 @@ export default function Resize() {
 
             {mode === "percentage" && (
               <label className="mt-5 block">
-                Percentage
+                <span className="text-sm font-bold text-primary-heading">
+                  Percentage
+                </span>
                 <input
                   type="number"
                   value={percentage}
-                  onChange={event =>
+                  onChange={(event) =>
                     setPercentage(
                       event.target.value
                     )
                   }
-                  className="mt-2 w-full rounded-lg border p-3"
+                  className="mt-2 w-full rounded-lg border border-outline bg-background px-3 py-3"
                 />
               </label>
             )}
 
             <label className="mt-5 block">
-              Format
+              <span className="text-sm font-bold text-primary-heading">
+                Format
+              </span>
 
               <select
                 value={format}
-                onChange={event =>
+                onChange={(event) =>
                   setFormat(
                     event.target.value
                   )
                 }
-                className="mt-2 w-full rounded-lg border p-3"
+                className="mt-2 w-full rounded-lg border border-outline bg-background px-3 py-3"
               >
                 <option value="jpg">
                   JPG
                 </option>
-
                 <option value="png">
                   PNG
                 </option>
-
                 <option value="webp">
                   WebP
                 </option>
@@ -249,12 +333,12 @@ export default function Resize() {
 
             <button
               onClick={resize}
-              className="mt-6 w-full rounded-lg bg-[#1b3125] p-4 font-bold text-white"
+              className="mt-6 w-full rounded-lg bg-primary px-4 py-4 font-bold text-white"
             >
-              Resize & Download →
+              Resize & Download
             </button>
 
-          </div>
+          </section>
 
         </div>
       )}

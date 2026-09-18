@@ -34,11 +34,48 @@ function imageToCanvas(image) {
   return canvas
 }
 
-function canvasToDataURL(canvas, quality = 0.92) {
-  return canvas.toDataURL(
-    "image/jpeg",
-    quality
-  )
+export function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+export function dataURLToBlob(dataURL) {
+  const parts = dataURL.split(",")
+  const mime = parts[0].match(/:(.*?);/)[1]
+  const binary = atob(parts[1])
+  const array = new Uint8Array(binary.length)
+
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i)
+  }
+
+  return new Blob([array], { type: mime })
+}
+
+export async function resizeImage(src, targetWidth, targetHeight, mime = "image/jpeg", quality = 0.9) {
+  const img = await loadImageFromSrc(src)
+
+  const canvas = document.createElement("canvas")
+  canvas.width = targetWidth
+  canvas.height = targetHeight
+
+  const ctx = canvas.getContext("2d")
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
+
+  return canvas.toDataURL(mime, quality)
+}
+
+function loadImageFromSrc(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
 }
 
 export async function detectDocumentCorners(image) {
@@ -352,7 +389,8 @@ function distance(a, b) {
   const dy = b.y - a.y
 
   return Math.sqrt(
-    dx * dx + dy * dy
+    dx * dx +
+    dy * dy
   )
 }
 
