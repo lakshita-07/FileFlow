@@ -303,9 +303,6 @@ export default function SmartScan() {
   const [selectedFile, setSelectedFile] =
     useState(null)
 
-  const [originalImage, setOriginalImage] =
-    useState(null)
-
   const [baseImage, setBaseImage] =
     useState(null)
 
@@ -469,8 +466,6 @@ export default function SmartScan() {
       const img =
         await loadImage(url)
 
-      setOriginalImage(img)
-
       setBaseImage(url)
 
       setPreview(url)
@@ -517,19 +512,6 @@ export default function SmartScan() {
         "Unable to read this image."
       )
     }
-  }
-
-
-  function handleFileChange(e) {
-
-    const file =
-      e.target.files?.[0]
-
-    if (file) {
-      handleFile(file)
-    }
-
-    e.target.value = ""
   }
 
 
@@ -852,6 +834,7 @@ export default function SmartScan() {
     return () =>
       clearTimeout(timer)
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     baseImage,
     autoDetect,

@@ -1,7 +1,8 @@
 import { useState } from "react"
 import FileUpload from "../components/FileUpload"
 import {
-  fileToDataURL
+  fileToDataURL,
+  dataURLToBlob
 } from "../utils/scanProcessing"
 import {
   imagesToPDF,
@@ -18,6 +19,9 @@ export default function Convert() {
   const [format, setFormat] =
     useState("png")
 
+  const [quality, setQuality] =
+    useState(0.85)
+
   const [message, setMessage] =
     useState("")
 
@@ -27,6 +31,7 @@ export default function Convert() {
     if (!selected) return
 
     setFile(selected)
+    setMessage("")
 
     if (selected.type.startsWith("image/")) {
       setPreview(
@@ -92,17 +97,11 @@ export default function Convert() {
           const data =
             canvas.toDataURL(
               mime,
-              0.9
+              quality
             )
 
-          const response =
-            await fetch(data)
-
-          const blob =
-            await response.blob()
-
           downloadBlob(
-            blob,
+            dataURLToBlob(data),
             file.name
               .replace(/\.[^/.]+$/, "") +
               `.${format}`
@@ -123,15 +122,17 @@ export default function Convert() {
   }
 
   return (
-    <main className="mx-auto max-w-[1100px] px-5 py-10">
+    <main className="mx-auto max-w-[1280px] px-5 py-8 lg:px-10">
 
-      <h1 className="text-4xl font-bold text-[#31473a]">
-        Convert
-      </h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-primary-heading">
+          Convert
+        </h1>
 
-      <p className="mt-2 text-[#424844]">
-        Convert your images to another format.
-      </p>
+        <p className="mt-2 text-on-surface-variant">
+          Convert images between common formats.
+        </p>
+      </div>
 
       {!file && (
         <div className="mt-8">
@@ -139,39 +140,40 @@ export default function Convert() {
             accept="image/*"
             onFiles={selectFile}
             title="Select image"
+            description="Click or drag an image here (JPG, PNG, WebP)"
           />
         </div>
       )}
 
       {file && (
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
 
-          <section className="rounded-xl border border-[#c2c8c2] bg-[#edf4f2] p-6">
+          <section className="rounded-xl border border-outline-variant bg-surface p-6">
 
-            <h2 className="font-bold">
+            <h2 className="font-bold text-primary-heading">
               Selected File
             </h2>
 
-            <p className="mt-3 font-semibold">
+            <p className="mt-3 font-semibold text-on-surface">
               {file.name}
             </p>
 
             {preview && (
               <img
                 src={preview}
-                className="mt-5 max-h-[500px] w-full object-contain"
+                className="mt-5 max-h-[500px] w-full object-contain rounded-lg"
               />
             )}
 
           </section>
 
-          <section className="rounded-xl border border-[#c2c8c2] bg-[#edf4f2] p-6">
+          <section className="rounded-xl border border-outline-variant bg-surface p-6">
 
-            <h2 className="font-bold">
+            <h2 className="font-bold text-primary-heading">
               Output Format
             </h2>
 
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3">
 
               {["jpg", "png", "webp", "pdf"].map(
                 item => (
@@ -182,8 +184,8 @@ export default function Convert() {
                     }
                     className={
                       format === item
-                        ? "rounded-lg bg-[#1b3125] px-4 py-3 font-bold text-white"
-                        : "rounded-lg border border-[#737973] px-4 py-3 font-bold"
+                        ? "rounded-lg bg-primary px-4 py-3 font-bold text-white"
+                        : "rounded-lg border border-outline px-4 py-3 font-bold text-on-surface-variant"
                     }
                   >
                     {item.toUpperCase()}
@@ -193,15 +195,37 @@ export default function Convert() {
 
             </div>
 
+            {format !== "pdf" && (
+              <label className="mt-5 block">
+                <span className="text-sm font-bold text-primary-heading">
+                  Quality
+                </span>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="1"
+                  step="0.05"
+                  value={quality}
+                  onChange={(e) =>
+                    setQuality(Number(e.target.value))
+                  }
+                  className="mt-3 w-full"
+                />
+                <span className="text-xs text-on-surface-variant">
+                  {Math.round(quality * 100)}%
+                </span>
+              </label>
+            )}
+
             <button
               onClick={convert}
-              className="mt-6 w-full rounded-lg bg-[#1b3125] px-4 py-4 font-bold text-white"
+              className="mt-6 w-full rounded-lg bg-primary px-4 py-4 font-bold text-white"
             >
-              Convert →
+              Convert & Download
             </button>
 
             {message && (
-              <p className="mt-4 font-semibold">
+              <p className="mt-4 text-sm font-semibold text-primary">
                 {message}
               </p>
             )}

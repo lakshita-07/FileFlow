@@ -40,6 +40,8 @@ export default function PDFTools() {
           files[0],
           pages
             .split(",")
+            .map(s => s.trim())
+            .filter(Boolean)
             .map(Number),
           "FileFlow_Extracted.pdf"
         )
@@ -66,17 +68,19 @@ export default function PDFTools() {
   }
 
   return (
-    <main className="mx-auto max-w-[1000px] px-5 py-10">
+    <main className="mx-auto max-w-[1280px] px-5 py-8 lg:px-10">
 
-      <h1 className="text-4xl font-bold text-[#31473a]">
-        PDF Tools
-      </h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-primary-heading">
+          PDF Tools
+        </h1>
 
-      <p className="mt-2 text-[#424844]">
-        Merge, extract and rotate PDF files.
-      </p>
+        <p className="mt-2 text-on-surface-variant">
+          Merge, extract and rotate PDF files.
+        </p>
+      </div>
 
-      <div className="mt-8 grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2 mb-6">
 
         {[
           ["merge", "Merge"],
@@ -90,8 +94,8 @@ export default function PDFTools() {
             }
             className={
               mode === value
-                ? "rounded-lg bg-[#1b3125] p-3 font-bold text-white"
-                : "rounded-lg border p-3 font-bold"
+                ? "rounded-lg bg-primary p-3 font-bold text-white"
+                : "rounded-lg border border-outline p-3 font-bold text-on-surface-variant"
             }
           >
             {label}
@@ -100,25 +104,26 @@ export default function PDFTools() {
 
       </div>
 
-      <div className="mt-5">
-
-        <FileUpload
-          accept="application/pdf"
-          multiple={mode === "merge"}
-          onFiles={setFiles}
-          title={
-            mode === "merge"
-              ? "Select PDFs"
-              : "Select PDF"
-          }
-        />
-
-      </div>
+      <FileUpload
+        accept="application/pdf"
+        multiple={mode === "merge"}
+        onFiles={setFiles}
+        title={
+          mode === "merge"
+            ? "Select PDFs"
+            : "Select PDF"
+        }
+        description={
+          mode === "merge"
+            ? "Click or drag multiple PDFs here"
+            : "Click or drag a PDF here"
+        }
+      />
 
       {files.length > 0 && (
-        <div className="mt-5 rounded-xl border bg-[#edf4f2] p-5">
+        <div className="mt-5 rounded-xl border border-outline-variant bg-surface p-5">
 
-          <h2 className="font-bold">
+          <h2 className="font-bold text-primary-heading">
             Selected Files
           </h2>
 
@@ -128,9 +133,14 @@ export default function PDFTools() {
               (file, index) => (
                 <div
                   key={index}
-                  className="rounded-lg bg-white p-3"
+                  className="rounded-lg bg-surface-container p-3"
                 >
-                  {file.name}
+                  <p className="font-semibold text-on-surface">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-on-surface-variant">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </p>
                 </div>
               )
             )}
@@ -141,27 +151,39 @@ export default function PDFTools() {
       )}
 
       {mode === "extract" && (
-        <input
-          value={pages}
-          onChange={event =>
-            setPages(
-              event.target.value
-            )
-          }
-          placeholder="Pages: 1,2,3"
-          className="mt-5 w-full rounded-lg border p-3"
-        />
+        <div className="mt-5">
+          <label className="block">
+            <span className="text-sm font-bold text-primary-heading">
+              Pages to extract (comma-separated)
+            </span>
+            <input
+              value={pages}
+              onChange={event =>
+                setPages(
+                  event.target.value
+                )
+              }
+              placeholder="1,2,3"
+              className="mt-2 w-full rounded-lg border border-outline bg-background px-3 py-3"
+            />
+          </label>
+        </div>
       )}
 
       <button
         onClick={run}
-        className="mt-5 w-full rounded-lg bg-[#1b3125] p-4 font-bold text-white"
+        disabled={!files.length}
+        className="mt-5 w-full rounded-lg bg-primary px-4 py-4 font-bold text-white disabled:opacity-50"
       >
-        Run PDF Tool →
+        {mode === "merge"
+          ? "Merge PDFs"
+          : mode === "extract"
+            ? "Extract Pages"
+            : "Rotate PDF"}
       </button>
 
       {message && (
-        <p className="mt-4 font-semibold">
+        <p className="mt-4 text-sm font-semibold text-primary">
           {message}
         </p>
       )}

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import FileUpload from "../components/FileUpload"
 import {
-  fileToDataURL
+  fileToDataURL,
 } from "../utils/scanProcessing"
 import {
   downloadBlob
@@ -17,52 +17,83 @@ export default function SmartCompress() {
   const [quality, setQuality] =
     useState("balanced")
 
-  const [target, setTarget] =
-    useState("2")
+  const [originalSize, setOriginalSize] =
+    useState(0)
+
+  const [resultSize, setResultSize] =
+    useState(null)
+
+  const [estimates, setEstimates] =
+    useState({})
+
+  const [estimating, setEstimating] =
+    useState(false)
 
   const [message, setMessage] =
     useState("")
 
-  const selectFile = (e) => {
-    const selected = e.target.files?.[0]
+  async function selectFile(files) {
+    const selected = files[0]
 
-  if (!selected) return
+    if (!selected) return
 
-  if (!selected.type.startsWith("image/")) {
-    return
+    if (!selected.type.startsWith("image/")) {
+      setMessage("Please select an image file.")
+      return
+    }
+
+    setFile(selected)
+    setResultSize(null)
+    setEstimates({})
+    setMessage("")
+
+    const src = await fileToDataURL(selected)
+
+    setPreview(src)
+    setOriginalSize(selected.size)
+
+    setEstimating(true)
+
+    const qualityOptions = [
+      { name: "high", quality: 0.92 },
+      { name: "balanced", quality: 0.7 },
+      { name: "smallest", quality: 0.45 },
+    ]
+
+    const img = new Image()
+
+    await new Promise((resolve) => {
+      img.onload = resolve
+      img.src = src
+    })
+
+    const canvas = document.createElement("canvas")
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext("2d")
+    ctx.drawImage(img, 0, 0)
+
+    const results = {}
+
+    for (const option of qualityOptions) {
+      const data = canvas.toDataURL("image/jpeg", option.quality)
+      const response = await fetch(data)
+      const blob = await response.blob()
+      results[option.name] = blob.size
+    }
+
+    setEstimates(results)
+    setEstimating(false)
   }
-
-  setFile(selected)
-
-  const reader = new FileReader()
-
-  reader.onload = async () => {
-    const image = await loadImage(reader.result)
-
-    setPreview(reader.result)
-
-    setOriginalWidth(image.naturalWidth)
-    setOriginalHeight(image.naturalHeight)
-
-    setWidth(image.naturalWidth)
-    setHeight(image.naturalHeight)
-  }
-
-  reader.readAsDataURL(selected)
-}
 
   async function compress() {
     if (!file) {
-      setMessage(
-        "Select a file first."
-      )
+      setMessage("Select a file first.")
       return
     }
 
     if (!file.type.startsWith("image/")) {
-      setMessage(
-        "Image compression is supported in this browser-only V1."
-      )
+      setMessage("Image compression only.")
       return
     }
 
@@ -95,7 +126,7 @@ export default function SmartCompress() {
       0
     )
 
-    let jpegQuality = 0.8
+    let jpegQuality = 0.7
 
     if (quality === "smallest") {
       jpegQuality = 0.45
@@ -117,6 +148,8 @@ export default function SmartCompress() {
           response.blob()
       )
 
+    setResultSize(blob.size)
+
     downloadBlob(
       blob,
       file.name
@@ -125,140 +158,131 @@ export default function SmartCompress() {
     )
 
     setMessage(
-      `Compression complete. Target: ${target} MB.`
+      "Compression complete."
     )
   }
 
+  function formatBytes(bytes) {
+    if (!bytes) return "0 B"
+    const units = ["B", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
+  }
+
   return (
-    <main className="mx-auto max-w-[1100px] px-5 py-10">
+    <main className="mx-auto max-w-[1280px] px-5 py-8 lg:px-10">
 
-      <h1 className="text-4xl font-bold text-[#31473a]">
-        Smart Compress
-      </h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-primary-heading">
+          Smart Compress
+        </h1>
 
-      <p className="mt-2 text-[#424844]">
-        Reduce file size while keeping the result useful.
-      </p>
+        <p className="mt-2 text-on-surface-variant">
+          Reduce file size while keeping the result useful.
+        </p>
+      </div>
 
       {!file && (
         <div className="mt-8">
           <FileUpload
             accept="image/*"
             onFiles={selectFile}
-            title="Select file to compress"
+            title="Select image to compress"
+            description="Click or drag an image here"
           />
         </div>
       )}
 
       {file && (
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
 
-          <div className="rounded-xl border border-[#c2c8c2] bg-[#edf4f2] p-6">
+          <section className="rounded-xl border border-outline-variant bg-surface p-6">
 
-            <h2 className="font-bold">
+            <h2 className="font-bold text-primary-heading">
               Preview
             </h2>
 
             {preview && (
               <img
                 src={preview}
-                className="mt-5 max-h-[500px] w-full object-contain"
+                className="mt-5 max-h-[500px] w-full object-contain rounded-lg"
               />
             )}
 
-          </div>
+            <div className="mt-4 rounded-lg bg-surface-container p-4">
+              <p className="font-semibold text-primary-heading">
+                {file.name}
+              </p>
+              <p className="text-sm text-on-surface-variant">
+                Original: {formatBytes(originalSize)}
+              </p>
+              {resultSize && (
+                <p className="mt-1 text-sm font-bold text-primary">
+                  Result: {formatBytes(resultSize)}
+                  {originalSize > 0 && (
+                    <span className="ml-2 text-xs font-normal text-on-surface-variant">
+                      ({Math.round((1 - resultSize / originalSize) * 100)}% reduction)
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
 
-          <div className="rounded-xl border border-[#c2c8c2] bg-[#edf4f2] p-6">
+          </section>
 
-            <h2 className="font-bold">
+          <section className="rounded-xl border border-outline-variant bg-surface p-6">
+
+            <h2 className="font-bold text-primary-heading">
               Compression
             </h2>
 
             <div className="mt-4 grid gap-2">
 
-              <button
-                onClick={() =>
-                  setQuality("smallest")
-                }
-                className={
-                  quality === "smallest"
-                    ? "rounded-lg bg-[#1b3125] p-3 font-bold text-white"
-                    : "rounded-lg border p-3 font-bold"
-                }
-              >
-                Maximum Reduction
-              </button>
-
-              <button
-                onClick={() =>
-                  setQuality("balanced")
-                }
-                className={
-                  quality === "balanced"
-                    ? "rounded-lg bg-[#1b3125] p-3 font-bold text-white"
-                    : "rounded-lg border p-3 font-bold"
-                }
-              >
-                Balanced
-              </button>
-
-              <button
-                onClick={() =>
-                  setQuality("high")
-                }
-                className={
-                  quality === "high"
-                    ? "rounded-lg bg-[#1b3125] p-3 font-bold text-white"
-                    : "rounded-lg border p-3 font-bold"
-                }
-              >
-                High Quality
-              </button>
+              {[
+                { id: "smallest", label: "Maximum Reduction" },
+                { id: "balanced", label: "Balanced" },
+                { id: "high", label: "High Quality" },
+              ].map(option => (
+                <button
+                  key={option.id}
+                  onClick={() =>
+                    setQuality(option.id)
+                  }
+                  className={`rounded-lg border p-3 text-left font-bold ${
+                    quality === option.id
+                      ? "border-primary bg-secondary-container text-primary-heading"
+                      : "border-outline text-on-surface-variant"
+                  }`}
+                >
+                  <span className="flex items-center justify-between">
+                    <span>{option.label}</span>
+                    <span className="text-sm font-normal text-on-surface-variant">
+                      {estimating
+                        ? "Calculating..."
+                        : estimates[option.id]
+                          ? `~${formatBytes(estimates[option.id])}`
+                          : ""}
+                    </span>
+                  </span>
+                </button>
+              ))}
 
             </div>
 
-            <label className="mt-5 block">
-              <span className="font-semibold">
-                Target size
-              </span>
-
-              <select
-                value={target}
-                onChange={event =>
-                  setTarget(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-lg border p-3"
-              >
-                <option value="2">
-                  2 MB
-                </option>
-
-                <option value="5">
-                  5 MB
-                </option>
-
-                <option value="custom">
-                  Custom
-                </option>
-              </select>
-            </label>
-
             <button
               onClick={compress}
-              className="mt-6 w-full rounded-lg bg-[#1b3125] p-4 font-bold text-white"
+              className="mt-6 w-full rounded-lg bg-primary px-4 py-4 font-bold text-white"
             >
-              Compress →
+              Compress & Download
             </button>
 
             {message && (
-              <p className="mt-4 font-semibold">
+              <p className="mt-4 text-sm font-semibold text-primary">
                 {message}
               </p>
             )}
 
-          </div>
+          </section>
 
         </div>
       )}
